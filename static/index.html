@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="STEEROS — the local router that sends every Claude Code prompt to the cheapest model that can handle it. Cut token spend 60%+." />
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+<title>STEEROS — token-aware llm dispatch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/static/style.css?v=7" />
+</head>
+<body>
+  <main class="page" id="terminal">
+
+    <!-- ========================================================== -->
+    <!-- ================= topbar : brand / status ================= -->
+    <header class="topbar">
+      <div class="brand">
+        <h1 class="logo"><a href="#overview" onclick="showView('overview');return false;"><img class="logo-img" src="/static/logo.png" alt="STEEROS" /> STEEROS</a></h1>
+        <span class="tagline">token-aware llm dispatch system · v2.0.0</span>
+      </div>
+      <div class="sysinfo">
+        <span class="systat led" id="led"></span>
+        <span id="sys-status">ONLINE</span>
+        <span class="dot">&middot;</span>
+        <span class="host" id="host">proxy 127.0.0.1:4040</span>
+      </div>
+    </header>
+
+    <!-- sticky section nav : switches pages, not scroll -->
+    <nav class="sections" id="sections" aria-label="pages">
+      <a href="#overview" class="tab active">Overview</a>
+      <a href="#problem" class="tab">The Problem</a>
+      <a href="#savings" class="tab">Proven Savings</a>
+      <a href="#stream" class="tab">Live Routing</a>
+      <a href="#roadmap" class="tab">Upcoming Enhancements</a>
+      <a href="#download" class="tab">Download</a>
+    </nav>
+
+    <!-- ================= PAGE: OVERVIEW ================= -->
+    <div class="view" id="view-overview">
+      <section id="overview" class="section">
+        <div class="hero">
+          <span class="hero-badge">LOCAL-FIRST&nbsp;&nbsp;·&nbsp;&nbsp;DROP-IN&nbsp;&nbsp;·&nbsp;&nbsp;NO CODE CHANGES</span>
+          <h2 class="hero-tagline" id="hero-tagline"></h2>
+          <p class="hero-sub" id="hero-sub"></p>
+
+          <div class="hero-cta">
+            <a class="btn" href="#download">[ GET THE FREE VERSION ]</a>
+            <a class="btn ghost" href="#savings">See the numbers →</a>
+          </div>
+
+          <div class="panel hero-term">
+            <div class="panel-head">
+              <div class="window-dots"><span></span><span></span><span></span></div>
+              <span class="box-title">live dispatch demo</span>
+            </div>
+            <div class="hero-term-body" id="hero-term"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ================= PAGE: PROBLEM + BUSINESS ================= -->
+    <div class="view" id="view-problem">
+      <section id="problem" class="section">
+        <h2 class="section-title" id="problem-title"></h2>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head">
+              <span class="box-title" id="problem-box-title"></span>
+              <span class="pill warn">warning</span>
+            </div>
+            <div class="card-body">
+              <h3 class="callout" id="problem-headline"></h3>
+              <p id="problem-body" class="typetext"></p>
+              <p class="framing" id="problem-framing"></p>
+
+              <div class="cost-leak" aria-hidden="true">
+                <div class="cl-flow">
+                  <div class="cl-stack">
+                    <span class="cl-stack-label">PROMPTS</span>
+                    <span class="cl-stack-line"></span>
+                    <span class="cl-stack-line"></span>
+                    <span class="cl-stack-line"></span>
+                  </div>
+                  <div class="cl-track" id="cl-track"></div>
+                  <div class="cl-flagship">
+                    <span class="cl-fs-name">FLAGSHIP</span>
+                    <span class="cl-fs-flame"></span>
+                  </div>
+                </div>
+                <div class="cl-readout">
+                  <span class="cl-readout-label">every request routed to the priciest model</span>
+                  <strong class="cl-burn" id="cl-burn">$0.00</strong>
+                  <span class="cl-readout-caption">burned this month</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <span class="box-title" id="solution-title"></span>
+              <span class="pill ok">solution</span>
+            </div>
+            <div class="card-body">
+              <h3 class="callout" id="solution-headline"></h3>
+              <p id="solution-body" class="typetext"></p>
+              <ul class="bullets" id="solution-bullets"></ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="card business">
+          <div class="card-head">
+            <span class="box-title" id="biz-title"></span>
+            <span class="pill warn">the bottom line</span>
+          </div>
+          <div class="card-body split">
+            <div>
+              <h3 class="callout" id="biz-headline"></h3>
+              <p id="biz-body" class="typetext"></p>
+              <p class="biz-study" id="biz-study"></p>
+            </div>
+            <div class="biz-stats" id="biz-stats"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ================= PAGE: SAVINGS ================= -->
+    <div class="view" id="view-savings">
+      <section id="savings" class="section">
+        <div class="counters">
+          <div class="counter">
+            <span class="counter-label">Tokens saved</span>
+            <span class="counter-value" id="c-tokens">0</span>
+            <span class="counter-sub">cumulative · this deployment</span>
+          </div>
+          <div class="counter hot">
+            <span class="counter-label">Dollars saved</span>
+            <span class="counter-value" id="c-dollars">$0</span>
+            <span class="counter-sub">vs. flagship-only baseline</span>
+          </div>
+          <div class="counter">
+            <span class="counter-label">Avg request cost</span>
+            <span class="counter-value" id="c-avg">$0.000</span>
+            <span class="counter-sub" id="c-avg-sub"></span>
+          </div>
+          <div class="counter">
+            <span class="counter-label">Efficiency</span>
+            <span class="counter-value" id="c-eff">0%</span>
+            <span class="counter-sub">requests that avoided the flagship</span>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head">
+              <span class="box-title">Token consumption · last 30 days</span>
+            </div>
+            <div class="card-body">
+              <svg id="spark" viewBox="0 0 600 180" preserveAspectRatio="none" class="spark"></svg>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <span class="box-title">Requests by route · 30 days</span>
+            </div>
+            <div class="card-body">
+              <div class="barchart" id="barchart"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <span class="box-title">Difficulty classification · routed split</span>
+          </div>
+          <div class="card-body">
+            <div class="donut-row">
+              <div class="donut" id="donut"></div>
+              <div class="legend" id="legend"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ================= PAGE: LIVE ROUTING ================= -->
+    <div class="view" id="view-stream">
+      <section id="stream" class="section">
+        <div class="card dispatch">
+          <div class="card-head">
+            <span class="box-title">View the full live local dashboard</span>
+            <span class="pill ok">streaming</span>
+          </div>
+          <div class="dispatch-notice">
+            <p class="muted">
+              Every dispatch decision is tracked in the live local dashboard —
+              requests, tokens, money saved, and the routing log, all in real time.
+            </p>
+            <button class="btn ghost" id="dash-btn" onclick="openLiveDashboard()">
+              OPEN LOCAL DASHBOARD ↗
+            </button>
+          </div>
+          <div class="dispatch-log" id="dispatch-log"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ================= PAGE: ROADMAP ================= -->
+    <div class="view" id="view-roadmap">
+      <section id="roadmap" class="section">
+        <div class="roadmap-head">
+          <h2 class="callout">Upcoming enhancements</h2>
+          <p class="muted">Development pipeline for STEEROS. Order reflects priority, not promise.</p>
+        </div>
+        <div class="roadmap" id="roadmap"></div>
+      </section>
+    </div>
+
+    <!-- ================= PAGE: DOWNLOAD ================= -->
+    <div class="view" id="view-download">
+      <section id="download" class="section">
+        <div class="grid-2 dl-grid">
+          <div class="card download-hero">
+            <div class="card-head">
+              <span class="box-title" id="free-title"></span>
+              <span class="pill ok">free</span>
+            </div>
+            <div class="card-body cent">
+              <h2 class="callout" id="free-headline"></h2>
+              <p class="muted" id="free-body"></p>
+              <button class="btn" id="dl-btn" onclick="downloadFree()">
+                [ DOWNLOAD THE FREE VERSION ]
+              </button>
+              <div class="filelist" id="filelist"></div>
+            </div>
+          </div>
+
+          <div class="card enterprise-card">
+            <div class="card-head">
+              <span class="box-title">STEEROS ENTERPRISE</span>
+              <span class="pill hot">B2B</span>
+            </div>
+            <div class="card-body">
+              <h2 class="callout">Self-hosted routing at org scale</h2>
+              <p class="muted">
+                SSO/SAML, dedicated infrastructure, org spend guardrails, and a
+                human-size SLA. Zero data leaves your VPC.
+              </p>
+              <ul class="ent-features">
+                <li>Dedicated fleet + private model access</li>
+                <li>Org spend guardrails per team</li>
+                <li>SSO / SAML + audit logs</li>
+                <li>SLA-backed support</li>
+              </ul>
+              <form class="lead-form" id="lead-form" onsubmit="submitLead(event)">
+                <input type="text" name="name" placeholder="Your name" required autocomplete="name" />
+                <input type="email" name="email" placeholder="Work email" required autocomplete="email" />
+                <input type="text" name="company" placeholder="Company" required autocomplete="organization" />
+                <button class="btn" type="submit" id="lead-btn">REQUEST A CALL</button>
+              </form>
+              <p class="lead-msg" id="lead-msg" role="status"></p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <footer class="statusbar">
+      <span class="muted">STEEROS · © 2026 · local-first, no data leaves your box</span>
+      <span id="clock" class="clock"></span>
+    </footer>
+  </main>
+
+  <!-- ================= LIVE LOCAL DASHBOARD OVERLAY ================= -->
+  <div class="dash-page" id="dash-page" aria-hidden="true">
+    <div class="dash-mask" onclick="closeLiveDashboard()"></div>
+    <div class="dash-panel" role="dialog" aria-label="live local dashboard">
+      <div class="dash-head">
+        <span class="dash-title">STEEROS — live local dashboard</span>
+        <span class="ld-live">LIVE</span>
+        <button class="dash-close" onclick="closeLiveDashboard()" aria-label="close">×</button>
+      </div>
+      <div class="dash-grid">
+        <div class="dash-stat"><span class="ld-tokens">—</span><span class="dash-label">tokens saved</span></div>
+        <div class="dash-stat"><span class="ld-saved">—</span><span class="dash-label">total money saved</span></div>
+        <div class="dash-stat"><span class="ld-monthly">—</span><span class="dash-label">avg monthly savings</span></div>
+        <div class="dash-stat"><span class="ld-requests">—</span><span class="dash-label">requests routed</span></div>
+      </div>
+      <div class="dash-foot">
+        <span class="muted">Pull from <span class="fn">/api/dashboard</span> · updates on every connection</span>
+        <button class="btn ghost" onclick="openLiveDashboard()">REFRESH DATA</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js?v=7"></script>
+</body>
+</html>
