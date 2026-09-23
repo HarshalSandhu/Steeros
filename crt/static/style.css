@@ -188,17 +188,6 @@ body {
 .logo-img { display: inline-block; height: 26px; width: auto; }
 .logo .dim { color: var(--accent-dim); }
 .tagline { font-size: 18px; color: var(--accent-dim); }
-.sysinfo { font-size: 18px; }
-.systat {
-  display: inline-block;
-  width: 10px; height: 10px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 8px var(--accent);
-  margin-right: 6px;
-  animation: blink 2s steps(1) infinite;
-}
-.systat.off { background: var(--danger); box-shadow: 0 0 8px var(--danger); color: var(--danger); }
 
 /* ---------- section navigation (sticky) ---------- */
 html { scroll-behavior: smooth; }

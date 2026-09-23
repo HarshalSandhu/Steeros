@@ -698,13 +698,10 @@ async function start() {
     const res = await fetch("/api/dashboard");
     DATA = await res.json();
   } catch (_) {
-    $("sys-status").textContent = "ERR: no API";
-    $("led").classList.add("off");
     return;
   }
 
   const d = DATA;
-  $("host").textContent = `${d.system.mux} · up ${d.system.uptime_human}`;
 
   renderHero(d);
   renderProblem(d);

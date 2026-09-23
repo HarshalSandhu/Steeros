@@ -727,20 +727,15 @@ async function start() {
   document.body.removeAttribute("data-theme");
   localStorage.removeItem("routeos-theme");
   clock();
-  $("sys-status").textContent = "ONLINE";
-  $("led").classList.remove("off");
 
   try {
     const res = await fetch("/api/dashboard");
     DATA = await res.json();
   } catch (_) {
-    $("sys-status").textContent = "ERR: no API";
-    $("led").classList.add("off");
     return;
   }
 
   const d = DATA;
-  $("host").textContent = `${d.system.mux} · up ${d.system.uptime_human}`;
 
   renderHero(d);
   renderProblem(d);
