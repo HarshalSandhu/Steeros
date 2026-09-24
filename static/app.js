@@ -1,5 +1,11 @@
 "use strict";
 
+// Free storage: submissions go to Formspree (no backend, emails land in your
+// inbox). Create a form there, then paste YOUR_FORM_ID here:
+//   https://formspree.io  →  My Forms  →  "<form-id>"
+const FORMSPREE_ID = "YOUR_FORM_ID";
+const FORMSPREE_URL = "https://formspree.io/f/" + FORMSPREE_ID;
+
 const $ = (id) => document.getElementById(id);
 const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
@@ -917,18 +923,16 @@ function submitWaitlist(event) {
   btn.disabled = true;
   btn.textContent = "JOINING…";
 
-  fetch("/api/waitlist", {
+  fetch(FORMSPREE_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({ email }),
   })
     .then((res) => res.json())
     .then((d) => {
       if (d.ok) {
         msg.className = "wait-msg ok";
-        msg.textContent = d.existing
-          ? "You're already on the list — watch your inbox."
-          : "You're on the list — watch your inbox for the setup.";
+        msg.textContent = "You're on the list — watch your inbox for the setup.";
         const row = $("wait-row");
         if (row) row.style.display = "none";
       } else {
@@ -940,7 +944,7 @@ function submitWaitlist(event) {
     })
     .catch(() => {
       msg.className = "wait-msg danger";
-      msg.textContent = "Network error. Is the server running?";
+      msg.textContent = "Network error. Formspree unreachable?";
       btn.disabled = false;
       btn.textContent = "[ JOIN THE WAITLIST ]";
     });

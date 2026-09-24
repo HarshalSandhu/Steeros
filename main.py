@@ -19,8 +19,6 @@ from fastapi.staticfiles import StaticFiles
 
 STATIC_DIR = Path(__file__).parent / "static"
 LEAD_FILE = Path(__file__).parent / "leads.json"
-WAITLIST_FILE = Path(__file__).parent / "waitlist.json"
-WAITLIST_FILE = Path(__file__).parent / "waitlist.json"
 
 app = FastAPI(title="STEEROS", version="2.0.0")
 
@@ -275,42 +273,6 @@ async def enterprise_lead(request: Request) -> dict:
     leads.append(lead)
     LEAD_FILE.write_text(json.dumps(leads, indent=2))
     return {"ok": True, "id": lead["id"], "existing": False}
-
-
-@app.post("/api/waitlist")
-async def waitlist_join(request: Request) -> dict:
-    """Capture a waitlist signup for the free/local tier. Persists to waitlist.json on disk."""
-    try:
-        data = await request.json()
-    except Exception:
-        return {"ok": False, "id": None, "error": "invalid_json"}
-
-    email = str(data.get("email", "")).strip().lower()
-    name = str(data.get("name", "")).strip()
-
-    if not email or "@" not in email or "." not in email:
-        return {"ok": False, "id": None, "error": "invalid_email"}
-
-    rows = []
-    if WAITLIST_FILE.exists():
-        try:
-            rows = json.loads(WAITLIST_FILE.read_text())
-        except Exception:
-            rows = []
-
-    for row in rows:
-        if row.get("email") == email:
-            return {"ok": True, "id": row.get("id"), "existing": True}
-
-    row = {
-        "id": len(rows) + 1,
-        "ts": datetime.now(timezone.utc).isoformat(),
-        "name": name,
-        "email": email,
-    }
-    rows.append(row)
-    WAITLIST_FILE.write_text(json.dumps(rows, indent=2))
-    return {"ok": True, "id": row["id"], "existing": False}
 
 
 @app.get("/api/free/download")
