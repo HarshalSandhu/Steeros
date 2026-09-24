@@ -151,75 +151,20 @@ function stopSparkTrace() {
 }
 
 /* ---------------------------------------------------------------- */
-/* hero                                                               */
-/* ---------------------------------------------------------------- */
-
-const HERO_LINES = [
-  ["$ claude", ""],
-  ["prompt: add unit tests for the token router", ""],
-  ["[SCORE] difficulty .93 ......... EASY", "accent"],
-  ["[ROUTE] light-model ............ $0.003", "alt"],
-  ["[SAVE]  vs flagship ............. $0.041", "accent"],
-  ["$ claude", ""],
-  ["prompt: redesign the multi-region migration plan", ""],
-  ["[SCORE] difficulty .41 ......... MEDIUM", "accent"],
-  ["[ROUTE] balanced-model ......... $0.012", "alt"],
-  ["[SAVE]  vs flagship ............. $0.056", "accent"],
-  ["$ claude", ""],
-  ["prompt: debug k8s startup crash under load", ""],
-  ["[SCORE] difficulty .12 ......... HARD", "accent"],
-  ["[ROUTE] top-model ............... $0.120", "alt"],
-  ["[SAVE]  flagship required ....... $0.000", "danger"],
-];
-
-function heroDemo() {
-  const el = $("hero-term");
-  el.innerHTML = "";
-  let li = 0, ci = 0;
-  const line = () => {
-    if (li >= HERO_LINES.length) {
-      setTimeout(() => {
-        el.innerHTML = "";
-        li = 0; ci = 0;
-        line();
-      }, 6000);
-      return;
-    }
-    const [text, cls] = HERO_LINES[li];
-    const row = document.createElement("div");
-    row.className = "demo-row" + (cls ? " " + cls : "");
-    el.appendChild(row);
-    const type = () => {
-      ci++;
-      row.textContent = text.slice(0, ci);
-      if (ci >= text.length) {
-        li++;
-        ci = 0;
-        setTimeout(line, 380);
-      } else {
-        typeTimer = setTimeout(type, 22);
-      }
-    };
-    type();
-  };
-  line();
-}
-
-/* ---------------------------------------------------------------- */
 /* sections                                                           */
 /* ---------------------------------------------------------------- */
 
 function renderHero(d) {
   $("hero-tagline").textContent = "Chat with Claude Code. Pay only for the model your prompt actually needs.";
   $("hero-sub").textContent =
-    "STEEROS sits in front of your LLM calls, scores every prompt by difficulty, and routes it " +
-    "to the cheapest tier that gets the job done. Local-first, drop-in, no code changes.";
+    "STEEROS routes every prompt to the cheapest tier that can handle it, " +
+    "local-first and drop-in.";
 }
 
 function renderProblem(d) {
   const p = d.problem, b = d.business_problem, s = d.solution;
 
-  $("problem-title").textContent = "01 // The Current Problem";
+  $("problem-title").textContent = "01 The Current Problem";
   $("problem-box-title").textContent = p.title;
   $("problem-headline").textContent = p.headline;
   $("problem-body").textContent = p.body.replace(/\s+/g, " ");
@@ -237,7 +182,7 @@ function renderProblem(d) {
   $("biz-body").textContent = b.body.replace(/\s+/g, " ");
   $("biz-study").innerHTML =
     `<a href="${b.study.url}" target="_blank" rel="noopener" class="study-name">${b.study.name}</a>` +
-    `<span class="study-claim"> — ${b.study.claim}</span> ` +
+    `<span class="study-claim">: ${b.study.claim}</span> ` +
     `<a href="${b.study.url}" target="_blank" rel="noopener" class="study-link">read the paper ↗</a>`;
   $("biz-stats").innerHTML = b.stats
     .map(
@@ -403,6 +348,417 @@ function renderDonut(diff) {
 }
 
 /* ---------------------------------------------------------------- */
+/* prompt → model routing demo · neural                              */
+/* ---------------------------------------------------------------- */
+
+let rdTimers = [];
+let rdBeam = null;
+let rdGen = 0;
+const rdReduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+const RD_DEMO = [
+  { p: "fix a typo in the docs", model: "light-model", score: 0.93, cost: "$0.003" },
+  { p: "refactor auth to async", model: "balanced-model", score: 0.41, cost: "$0.012" },
+  { p: "design multi-region migration", model: "top-model", score: 0.12, cost: "$0.120" },
+];
+const RD_NODES = [
+  { model: "light-model", y: 40 },
+  { model: "balanced-model", y: 125 },
+  { model: "top-model", y: 210 },
+];
+
+const NS = "http://www.w3.org/2000/svg";
+const svgEl = (tag, attrs) => {
+  const e = document.createElementNS(NS, tag);
+  Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
+  return e;
+};
+
+function buildRdSVG() {
+  const svg = $("rd-svg");
+  if (!svg || svg.dataset.built) return;
+  svg.dataset.built = "1";
+  svg.innerHTML = "";
+
+  RD_NODES.forEach((n, i) => {
+    svg.appendChild(svgEl("path", {
+      class: "rd-link", id: "rd-link-" + i, d: `M 54 125 C 210 125, 300 ${n.y}, 558 ${n.y}`,
+    }));
+    const g = svgEl("g", { class: "rd-node", id: "rd-node-" + i });
+    g.appendChild(svgEl("circle", { class: "n-ring", cx: 558, cy: n.y, r: 12 }));
+    g.appendChild(svgEl("circle", { class: "n-core", cx: 558, cy: n.y, r: 5 }));
+    svg.appendChild(g);
+  });
+
+  const hub = svgEl("g", { class: "rd-hub-ring" });
+  hub.appendChild(svgEl("circle", { cx: 54, cy: 125, r: 14, fill: "none", stroke: "#e08baf", "stroke-width": 1.5, "stroke-dasharray": "3 4" }));
+  hub.appendChild(svgEl("circle", { cx: 54, cy: 125, r: 4, fill: "#e08baf" }));
+  svg.appendChild(hub);
+  const hubLabel = svgEl("text", { class: "rd-label", x: 54, y: 96, "text-anchor": "middle" });
+  hubLabel.textContent = "ROUTER";
+  svg.appendChild(hubLabel);
+}
+
+function rdLaunch() {
+  const svg = $("rd-svg");
+  const g = svgEl("g", { id: "rd-beam" });
+  const head = svgEl("circle", { class: "rd-tracer", r: 4.5 });
+  const trail = [];
+  for (let i = 0; i < 6; i++) {
+    trail.push(svgEl("circle", { class: "rd-tracer", r: Math.max(1.2, 4 - i * 0.55) }));
+    g.appendChild(trail[i]);
+  }
+  g.appendChild(head);
+  svg.appendChild(g);
+  rdBeam = g;
+  return { head, trail };
+}
+
+function rdFly(path, tracer, duration) {
+  const len = path.getTotalLength();
+  path.classList.add("drawing");
+  path.style.strokeDasharray = String(len);
+  path.style.strokeDashoffset = String(len);
+  return new Promise((resolve) => {
+    let t0 = null;
+    const step = (t) => {
+      if (!t0) t0 = t;
+      const p = Math.min(1, (t - t0) / duration);
+      const ease = 1 - Math.pow(1 - p, 3);
+      path.style.strokeDashoffset = String(len * (1 - ease));
+      for (let i = 0; i < tracer.trail.length; i++) {
+        const pos = Math.max(0, ease - (i + 1) * 0.045);
+        const pt = path.getPointAtLength(pos * len);
+        tracer.trail[i].setAttribute("cx", pt.x);
+        tracer.trail[i].setAttribute("cy", pt.y);
+        tracer.trail[i].setAttribute("opacity", pos > 0 ? 1 - i / 7 : 0);
+      }
+      const pt = path.getPointAtLength(ease * len);
+      tracer.head.setAttribute("cx", pt.x);
+      tracer.head.setAttribute("cy", pt.y);
+      if (p < 1) requestAnimationFrame(step);
+      else resolve();
+    };
+    requestAnimationFrame(step);
+  });
+}
+
+function rdClearBeam() {
+  if (rdBeam) { rdBeam.remove(); rdBeam = null; }
+}
+
+const rdType = (el, text, speed, gap) =>
+  new Promise((resolve) => {
+    let i = 0;
+    const t = setInterval(() => {
+      i += 2;
+      el.textContent = text.slice(0, Math.min(i, text.length));
+      if (i >= text.length) {
+        clearInterval(t);
+        rdTimers = rdTimers.filter((x) => x !== t);
+        setTimeout(resolve, gap || 260);
+      }
+    }, speed);
+    rdTimers.push(t);
+  });
+
+const rdWait = (ms) =>
+  new Promise((r) => {
+    const t = setTimeout(r, ms);
+    rdTimers.push(t);
+  });
+
+async function runRoutingDemo() {
+  const readout = $("rd-readout");
+  if (!readout) return;
+  const gen = ++rdGen;
+  if (rdReduced.matches) {
+    readout.innerHTML =
+      `<div class="r-promp">$ claude · prompt: ${RD_DEMO[1].p}</div>` +
+      `<div class="r-score">[SCORE] difficulty ${RD_DEMO[1].score.toFixed(2)}</div>` +
+      `<div class="r-route">[ROUTE] → ${RD_DEMO[1].model} · ${RD_DEMO[1].cost}</div>`;
+    return;
+  }
+
+  let i = 0;
+  for (;;) {
+    if (gen !== rdGen) return;
+    const demo = RD_DEMO[i];
+    readout.innerHTML = "";
+    const promp = document.createElement("div");
+    promp.className = "r-promp";
+    promp.textContent = "$ claude";
+    const promp2 = document.createElement("div");
+    promp2.className = "r-promp";
+    promp2.textContent = "";
+    promp2.style.opacity = "0.8";
+    const promptBlock = document.createElement("div");
+    promptBlock.append(promp, promp2);
+    const score = document.createElement("div");
+    score.className = "r-score";
+    score.textContent = "[SCORE] difficulty 0.00";
+    const route = document.createElement("div");
+    route.className = "r-route";
+    route.textContent = "";
+
+    readout.append(promptBlock, score, route);
+
+    await rdType(promp2, `prompt: ${demo.p}`, 22);
+    if (gen !== rdGen) return;
+
+    const start = performance.now();
+    await new Promise((resolve) => {
+      const t = setInterval(() => {
+        const k = Math.min(1, (performance.now() - start) / 1400);
+        const vivid = 1 - Math.pow(1 - k, 3);
+        score.textContent = `[SCORE] difficulty ${(demo.score * vivid).toFixed(2).padStart(5, "0")}`;
+        if (k >= 1) { clearInterval(t); resolve(); }
+      }, 30);
+    });
+    if (gen !== rdGen) return;
+
+    const node = $("rd-node-" + i);
+    const link = $("rd-link-" + i);
+    node.classList.add("lit");
+    const lbl = document.querySelector('.rd-node-label[data-i="' + i + '"]');
+    if (lbl) lbl.classList.add("on");
+    route.textContent = `[ROUTE] → ${demo.model} · ${demo.cost}`;
+
+    await rdWait(400);
+    await rdFly(link, rdLaunch(), 1800);
+    rdClearBeam();
+    if (gen !== rdGen) return;
+
+    await rdWait(1400);
+    node.classList.remove("lit");
+    if (lbl) lbl.classList.remove("on");
+    link.classList.remove("drawing");
+    link.style.strokeDasharray = "";
+    link.style.strokeDashoffset = "";
+    await rdWait(400);
+    i = (i + 1) % RD_DEMO.length;
+  }
+}
+
+function startRoutingDemo() {
+  buildRdSVG();
+  runRoutingDemo();
+}
+
+function stopRoutingDemo() {
+  rdGen++;
+  rdTimers.forEach((t) => { clearInterval(t); clearTimeout(t); });
+  rdTimers = [];
+  rdClearBeam();
+  const readout = $("rd-readout");
+  if (readout) readout.innerHTML = "";
+  document.querySelectorAll(".rd-node").forEach((n) => n.classList.remove("lit"));
+  document.querySelectorAll(".rd-node-label").forEach((l) => l.classList.remove("on"));
+  document.querySelectorAll(".rd-link").forEach((l) => {
+    l.classList.remove("drawing");
+    l.style.strokeDasharray = "";
+    l.style.strokeDashoffset = "";
+  });
+}
+
+/* ---------------------------------------------------------------- */
+/* flagship burn                                                    */
+/* ---------------------------------------------------------------- */
+
+const burnStages = [];
+let burnRunning = false;
+const burnReduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+function burnCost() {
+  if (DATA && DATA.savings) {
+    return (DATA.savings.requests_total * DATA.savings.avg_cost_before);
+  }
+  return 3278.34;
+}
+
+function fmtMoney(n) {
+  return "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function makeBurn(canvasId, valueId, subId, target, opts) {
+  opts = opts || {};
+  const cv = $(canvasId);
+  const val = $(valueId);
+  const sub = $(subId);
+  if (!cv || !val) return null;
+  const ctx = cv.getContext("2d");
+  if (!ctx) return null;
+
+  const W = cv.width, H = cv.height;
+  const embers = [];
+  let fireX = W / 2, fireY = H * 0.86, fireR = 8;
+  let spend = 0;
+  let frame = 0;
+  let raf = 0;
+  let resetT = null;
+  const hueBase = opts.hueBase || 24;
+
+  const spawn = () => {
+    const n = 1 + Math.floor(Math.random() * 1);
+    for (let k = 0; k < n; k++) {
+      embers.push({
+        x: W / 2 + (Math.random() - 0.5) * W * 0.7,
+        y: (Math.random() - 0.3) * H * 0.3,
+        vx: (Math.random() - 0.5) * 0.5,
+        vy: 0.12 + Math.random() * 0.4,
+        r: 0.8 + Math.random() * 1.4,
+        hue: hueBase - 12 + Math.random() * 28,
+        life: 1,
+        decay: 0.001 + Math.random() * 0.002,
+        value: target / 4200,
+      });
+    }
+  };
+
+  const drawFlame = () => {
+    const flames = opts.flame || {
+      c0: "rgba(255,190,120,0.85)",
+      c1: "rgba(217,80,60,0.5)",
+      c2: "rgba(60,15,20,0)",
+      c3: "rgba(255,225,180,",
+    };
+    const grd = ctx.createRadialGradient(fireX, fireY, 2, fireX, fireY, fireR * 3.4);
+    grd.addColorStop(0, flames.c0);
+    grd.addColorStop(0.35, flames.c1);
+    grd.addColorStop(1, flames.c2);
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.arc(fireX, fireY, fireR * 3.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    const flicker = 0.7 + Math.sin(performance.now() / 90) * 0.12;
+    ctx.fillStyle = flames.c3 + (0.9 * flicker) + ")";
+    ctx.beginPath();
+    ctx.arc(fireX, fireY, fireR * 1.1, 0, Math.PI * 2);
+    ctx.fill();
+  };
+
+  const render = () => {
+    val.textContent = fmtMoney(spend);
+    if (sub) {
+      sub.textContent = fmtMoney(target) +
+        (opts.caption ? " · " + opts.caption : "");
+    }
+  };
+
+  const loop = () => {
+    if (!burnRunning) return;
+    ctx.clearRect(0, 0, W, H);
+
+    frame++;
+    if (frame % 5 === 0) spawn();
+    fireR = 8 + Math.random() * 3;
+    drawFlame();
+
+    for (let i = embers.length - 1; i >= 0; i--) {
+      const e = embers[i];
+      e.x += e.vx + Math.sin((e.x + performance.now() / 600) * 0.02) * 0.3;
+      e.y += e.vy;
+      e.vy += 0.008;
+      const dx = fireX - e.x, dy = fireY - e.y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d < fireR * 5) {
+        e.x += dx * 0.03;
+        e.y += dy * 0.03;
+      }
+      e.life -= e.decay;
+      if (e.life <= 0 || e.y > H + 8) { spend += e.value; embers.splice(i, 1); continue; }
+      if (d < fireR * 2.4) spend += e.value * 0.02;
+      ctx.globalAlpha = Math.max(0, e.life);
+      ctx.fillStyle = "hsl(" + e.hue + ", 90%, " + (52 + e.life * 45) + "%)";
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    spend = Math.min(spend, target);
+    if (opts.onTick) opts.onTick(spend, target);
+    render();
+
+    if (spend >= target) {
+      val.classList.add("maxed");
+      resetT = setTimeout(() => {
+        spend = 0;
+        embers.length = 0;
+        val.classList.remove("maxed");
+        val.textContent = fmtMoney(0);
+        loop();
+      }, 1400);
+      return;
+    }
+    raf = requestAnimationFrame(loop);
+  };
+
+  return {
+    start() {
+      if (burnReduced.matches) {
+        spend = target;
+        render();
+        val.classList.add("maxed");
+        return;
+      }
+      loop();
+    },
+    stop() {
+      cancelAnimationFrame(raf);
+      clearTimeout(resetT);
+    },
+  };
+}
+
+function startBurn() {
+  const s = (DATA && DATA.savings) ? DATA.savings : null;
+  const flagshipTarget = burnCost();
+  const routedTarget = s ? s.requests_total * s.avg_cost_after : flagshipTarget * 0.37;
+  const pctTarget = s ? s.pct_saved : 63;
+  const requests = s ? s.requests_total.toLocaleString() : "48,211";
+  const pctEl = $("bc-pct"), keepEl = $("bc-keep");
+
+  burnRunning = true;
+
+  const routed = makeBurn("burn-canvas-2", "burn-value-2", "burn-sub-2", routedTarget, {
+    hueBase: 148,
+    caption: "requests split by capability across 3 model tiers",
+    flame: {
+      c0: "rgba(150,255,200,0.85)",
+      c1: "rgba(60,190,140,0.5)",
+      c2: "rgba(10,60,40,0)",
+      c3: "rgba(200,255,230,",
+    },
+  });
+  if (routed) {
+    routed.start();
+    burnStages.push(routed);
+  }
+
+  const flagship = makeBurn("burn-canvas", "burn-value", "burn-sub", flagshipTarget, {
+    hueBase: 24,
+    caption: requests + " requests at $" + (s ? s.avg_cost_before : 0.068) + "/prompt",
+    onTick(spend, target) {
+      if (keepEl) keepEl.textContent = fmtMoney(spend - spend * routedTarget / target);
+    },
+  });
+  if (flagship) {
+    flagship.start();
+    burnStages.push(flagship);
+  }
+
+  if (pctEl) pctEl.textContent = pctTarget + "% less spend";
+  if (keepEl) keepEl.textContent = "$0.00";
+}
+
+function stopBurn() {
+  burnRunning = false;
+  burnStages.forEach((st) => st.stop());
+  burnStages.length = 0;
+}
+
+/* ---------------------------------------------------------------- */
 /* dispatch stream                                                    */
 /* ---------------------------------------------------------------- */
 
@@ -501,7 +857,7 @@ function renderRoadmap(items) {
 function renderFree(d) {
   $("free-title").textContent = d.name;
   $("free-headline").textContent = d.limits;
-  $("free-body").textContent = "Zero install — one binary, one port. Ships with the tier map, proxy script, and a config that works out of the box.";
+  $("free-body").textContent = "Zero install: enter your keys, hit start, and route immediately.";
   $("filelist").innerHTML = d.files
     .map(
       (f) =>
@@ -535,10 +891,10 @@ function submitLead(event) {
       const msg = $("lead-msg");
       if (d.ok) {
         msg.className = "lead-msg ok";
-        msg.textContent = "Thanks — our enterprise team will reach out.";
+        msg.textContent = "Thanks. Our enterprise team will reach out.";
       } else {
         msg.className = "lead-msg danger";
-        msg.textContent = "Could not submit — please check your email.";
+        msg.textContent = "Could not submit. Please check your email.";
         btn.disabled = false;
         btn.textContent = "REQUEST A CALL";
       }
@@ -546,9 +902,47 @@ function submitLead(event) {
     .catch(() => {
       const msg = $("lead-msg");
       msg.className = "lead-msg danger";
-      msg.textContent = "Network error — try again.";
+      msg.textContent = "Network error. Try again.";
       btn.disabled = false;
       btn.textContent = "REQUEST A CALL";
+    });
+}
+
+function submitWaitlist(event) {
+  event.preventDefault();
+  const btn = $("wait-btn");
+  if (btn.disabled) return;
+  const email = $("wait-email").value.trim().toLowerCase();
+  const msg = $("wait-msg");
+  btn.disabled = true;
+  btn.textContent = "JOINING…";
+
+  fetch("/api/waitlist", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  })
+    .then((res) => res.json())
+    .then((d) => {
+      if (d.ok) {
+        msg.className = "wait-msg ok";
+        msg.textContent = d.existing
+          ? "You're already on the list — watch your inbox."
+          : "You're on the list — watch your inbox for the setup.";
+        const row = $("wait-row");
+        if (row) row.style.display = "none";
+      } else {
+        msg.className = "wait-msg danger";
+        msg.textContent = "That email didn't look right. Try again.";
+        btn.disabled = false;
+        btn.textContent = "[ JOIN THE WAITLIST ]";
+      }
+    })
+    .catch(() => {
+      msg.className = "wait-msg danger";
+      msg.textContent = "Network error. Is the server running?";
+      btn.disabled = false;
+      btn.textContent = "[ JOIN THE WAITLIST ]";
     });
 }
 
@@ -575,7 +969,7 @@ function openLiveDashboard() {
     .catch(() => {
       const msg = $("lead-msg");
       msg.className = "lead-msg danger";
-      msg.textContent = "Dashboard API unreachable — is the server running?";
+      msg.textContent = "Dashboard API unreachable. Is the server running?";
     });
 }
 
@@ -611,8 +1005,12 @@ function showView(hash) {
   window.scrollTo({ top: 0, behavior: "auto" });
   if (v.hash === "problem") startCostLeak();
   else stopCostLeak();
+  if (v.hash === "problem") startBurn();
+  else stopBurn();
   if (v.hash === "savings") startSparkTrace();
   else stopSparkTrace();
+  if (v.hash === "overview") startRoutingDemo();
+  else stopRoutingDemo();
   enterView(v.hash);
 }
 
@@ -631,9 +1029,6 @@ function enterView(hash) {
   if (enteredViews[hash]) return;
   enteredViews[hash] = true;
 
-  if (hash === "overview") {
-    heroDemo();
-  }
   if (hash === "problem") {
     typeText($("problem-body"), DATA.problem.body.replace(/\s+/g, " "));
     typeText($("solution-body"), DATA.solution.body.replace(/\s+/g, " "));

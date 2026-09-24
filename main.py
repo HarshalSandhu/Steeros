@@ -1,4 +1,4 @@
-"""STEEROS — token-aware LLM dispatch dashboard.
+"""STEEROS · token-aware LLM dispatch dashboard.
 
 Sits on the local server, intercepts Claude Code prompts, classifies
 difficulty, and routes each request to the cheapest model that can handle it.
@@ -19,6 +19,8 @@ from fastapi.staticfiles import StaticFiles
 
 STATIC_DIR = Path(__file__).parent / "static"
 LEAD_FILE = Path(__file__).parent / "leads.json"
+WAITLIST_FILE = Path(__file__).parent / "waitlist.json"
+WAITLIST_FILE = Path(__file__).parent / "waitlist.json"
 
 app = FastAPI(title="STEEROS", version="2.0.0")
 
@@ -52,7 +54,7 @@ MOCK_DASHBOARD = {
         "title": "The Current Problem",
         "headline": "Once a model is selected, every prompt pays its price.",
         "body": (
-            "Whatever coding agent you use — Claude Code, Cursor, Copilot — you "
+            "Whatever coding agent you use, Claude Code, Cursor, Copilot, you "
             "pick a model and that door flies open for everything: from a one-line "
             "git message to a multi-file refactor, every prompt bleeds premium "
             "tokens. Teams routinely burn 60-70% of their spend on requests that a "
@@ -65,17 +67,17 @@ MOCK_DASHBOARD = {
         "headline": "A three-tier ladder: lowest cost, balanced, quality.",
         "body": (
             "STEEROS sits between your prompts and the LLMs. Each request is "
-            "scored for complexity — intent, context size, tool usage, risk — and "
+            "scored for complexity: intent, context size, tool usage, risk, and "
             "dropped onto the right rung: the lowest-cost model for easy tasks, "
             "the balanced mid-tier for most engineering work, and the quality "
             "flagship only when the task actually earns its price."
         ),
         "bullet_points": [
             "Heuristic + classifier scoring on every prompt",
-            "Three tiers: low-cost · balanced · quality — each with its own cost ceiling",
-            "Per-model cost ceilings — you define the wallet",
+            "Three tiers: low-cost · balanced · quality, each with its own cost ceiling",
+            "Per-model cost ceilings, you define the wallet",
             "Fallback chain: if a low-cost model fails, escalate automatically",
-            "Zero code changes on your side — Claude Code just talks to one proxy",
+            "Zero code changes on your side, Claude Code just talks to one proxy",
         ],
     },
     "business_problem": {
@@ -85,7 +87,7 @@ MOCK_DASHBOARD = {
             "Every agentic coding task is a cascade of model calls. Costs grow "
             "linearly with seat count, but nobody watches per-request spend. "
             "Finance sees the invoice, engineers see latency, and the flagship "
-            "model quietly becomes your default for everything — including the "
+            "model quietly becomes your default for everything, including the "
             "10-second one-liner."
         ),
         "study": {
@@ -125,7 +127,7 @@ MOCK_DASHBOARD = {
         {
             "id": 1,
             "title": "Live Local Dashboard",
-            "desc": "Already shipped. A live local dashboard tracks requests, tokens, and money saved in real time — click any metric to open its live API connection.",
+            "desc": "Already shipped. A live local dashboard tracks requests, tokens, and money saved in real time, click any metric to open its live API connection.",
             "status": "included",
             "eta": "SHIPPED",
             "progress": 100,
@@ -133,7 +135,7 @@ MOCK_DASHBOARD = {
         {
             "id": 2,
             "title": "Other Coding Agents",
-            "desc": "One router for every coding agent — Cursor, Codex, Gemini CLI, Aider, Copilot — same difficulty gate, same cost governor.",
+            "desc": "One router for every coding agent, Cursor, Codex, Gemini CLI, Aider, Copilot, same difficulty gate, same cost governor.",
             "status": "in development",
             "eta": "Q4 2026",
             "progress": 55,
@@ -173,7 +175,7 @@ MOCK_DASHBOARD = {
     ],
     "free_tier": {
         "name": "STEEROS FREE",
-        "limits": "Tiered at 25k requests/mo — enough for a solo dev or a small team pilot.",
+        "limits": "Open-source quickstart for STEEROS.",
         "files": [
             {"name": "routes.free.yaml", "bytes": 1843, "what": "working config template"},
             {"name": "proxy.example.sh", "bytes": 921, "what": "one-liner localhost proxy"},
@@ -182,7 +184,7 @@ MOCK_DASHBOARD = {
     },
 }
 
-FREE_CONFIG_YAML = """# STEEROS FREE — generated @ {now}
+FREE_CONFIG_YAML = """# STEEROS FREE, generated @ {now}
 # Hand-tune ceilings for your wallet. Smallest model that clears the bar wins.
 version: 2.0.0
 mode: free
@@ -273,6 +275,42 @@ async def enterprise_lead(request: Request) -> dict:
     leads.append(lead)
     LEAD_FILE.write_text(json.dumps(leads, indent=2))
     return {"ok": True, "id": lead["id"], "existing": False}
+
+
+@app.post("/api/waitlist")
+async def waitlist_join(request: Request) -> dict:
+    """Capture a waitlist signup for the free/local tier. Persists to waitlist.json on disk."""
+    try:
+        data = await request.json()
+    except Exception:
+        return {"ok": False, "id": None, "error": "invalid_json"}
+
+    email = str(data.get("email", "")).strip().lower()
+    name = str(data.get("name", "")).strip()
+
+    if not email or "@" not in email or "." not in email:
+        return {"ok": False, "id": None, "error": "invalid_email"}
+
+    rows = []
+    if WAITLIST_FILE.exists():
+        try:
+            rows = json.loads(WAITLIST_FILE.read_text())
+        except Exception:
+            rows = []
+
+    for row in rows:
+        if row.get("email") == email:
+            return {"ok": True, "id": row.get("id"), "existing": True}
+
+    row = {
+        "id": len(rows) + 1,
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "name": name,
+        "email": email,
+    }
+    rows.append(row)
+    WAITLIST_FILE.write_text(json.dumps(rows, indent=2))
+    return {"ok": True, "id": row["id"], "existing": False}
 
 
 @app.get("/api/free/download")

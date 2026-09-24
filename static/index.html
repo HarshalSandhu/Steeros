@@ -3,16 +3,17 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<meta name="description" content="STEEROS — the local router that sends every Claude Code prompt to the cheapest model that can handle it. Cut token spend 60%+." />
+<meta name="description" content="STEEROS: the local router that sends every Claude Code prompt to the cheapest model that can handle it. Cut token spend 60%+." />
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
-<title>STEEROS — token-aware llm dispatch</title>
+<title>STEEROS · token-aware llm dispatch</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/static/style.css?v=7" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Geist:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/static/style.css?v=8" />
 </head>
 <body>
-  <main class="page" id="terminal">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <main class="page" id="main">
 
     <!-- ========================================================== -->
     <!-- ================= topbar : brand / status ================= -->
@@ -30,28 +31,40 @@
       <a href="#savings" class="tab">Proven Savings</a>
       <a href="#stream" class="tab">Live Routing</a>
       <a href="#roadmap" class="tab">Upcoming Enhancements</a>
-      <a href="#download" class="tab">Download</a>
+      <a href="#download" class="tab">Local Setup</a>
     </nav>
 
     <!-- ================= PAGE: OVERVIEW ================= -->
     <div class="view" id="view-overview">
       <section id="overview" class="section">
         <div class="hero">
-          <span class="hero-badge">LOCAL-FIRST&nbsp;&nbsp;·&nbsp;&nbsp;DROP-IN&nbsp;&nbsp;·&nbsp;&nbsp;NO CODE CHANGES</span>
           <h2 class="hero-tagline" id="hero-tagline"></h2>
-          <p class="hero-sub" id="hero-sub"></p>
-
-          <div class="hero-cta">
-            <a class="btn" href="#download">[ GET THE FREE VERSION ]</a>
-            <a class="btn ghost" href="#savings">See the numbers →</a>
-          </div>
 
           <div class="panel hero-term">
             <div class="panel-head">
               <div class="window-dots"><span></span><span></span><span></span></div>
-              <span class="box-title">live dispatch demo</span>
+              <span class="box-title">prompt → model routing · live</span>
             </div>
-            <div class="hero-term-body" id="hero-term"></div>
+            <div class="rd-panel" aria-label="live routing demo">
+              <div class="rd-stage">
+                <svg id="rd-svg" viewBox="0 0 640 250" preserveAspectRatio="xMidYMid meet" role="img" aria-hidden="true"></svg>
+                <span class="rd-lbl rd-hub-label">ROUTER</span>
+                <span class="rd-lbl rd-node-label" data-i="0">light-model</span>
+                <span class="rd-lbl rd-node-label" data-i="1">balanced-model</span>
+                <span class="rd-lbl rd-node-label" data-i="2">top-model</span>
+              </div>
+              <div class="rd-readout" id="rd-readout" aria-hidden="true"></div>
+            </div>
+          </div>
+
+          <div class="hero-copy">
+            <span class="hero-badge">LOCAL-FIRST&nbsp;&nbsp;·&nbsp;&nbsp;DROP-IN&nbsp;&nbsp;·&nbsp;&nbsp;NO CODE CHANGES</span>
+            <p class="hero-sub" id="hero-sub"></p>
+
+            <div class="hero-cta">
+              <a class="btn" href="#download">[ GET THE FREE VERSION ]</a>
+              <a class="btn ghost" href="#savings">See the numbers →</a>
+            </div>
           </div>
         </div>
       </section>
@@ -105,6 +118,37 @@
               <p id="solution-body" class="typetext"></p>
               <ul class="bullets" id="solution-bullets"></ul>
             </div>
+          </div>
+        </div>
+
+        <div class="card burn-card">
+          <div class="card-head">
+            <span class="box-title">What routing does to spend</span>
+            <span class="pill danger">all → flagship vs routed</span>
+          </div>
+          <div class="card-body burn-body">
+            <div class="burn-stage">
+              <canvas id="burn-canvas" width="640" height="240" aria-hidden="true"></canvas>
+              <div class="burn-readout">
+                <span class="burn-eyebrow">no routing · every request hits the priciest model</span>
+                <strong class="burn-value danger" id="burn-value">$0.00</strong>
+                <span class="burn-sub" id="burn-sub"></span>
+              </div>
+            </div>
+
+            <div class="burn-stage routed">
+              <canvas id="burn-canvas-2" width="640" height="240" aria-hidden="true"></canvas>
+              <div class="burn-readout">
+                <span class="burn-eyebrow">with STEEROS routing · smart split across models</span>
+                <strong class="burn-value ok" id="burn-value-2">$0.00</strong>
+                <span class="burn-sub" id="burn-sub-2"></span>
+              </div>
+            </div>
+          </div>
+          <div class="burn-footer">
+            <span><strong id="bc-keep">$0</strong> kept on the table avoided</span>
+            <span class="bc-dot ok"></span>
+            <span id="bc-pct">63% less spend</span>
           </div>
         </div>
 
@@ -194,7 +238,7 @@
           </div>
           <div class="dispatch-notice">
             <p class="muted">
-              Every dispatch decision is tracked in the live local dashboard —
+              Every dispatch decision is tracked in the live local dashboard:
               requests, tokens, money saved, and the routing log, all in real time.
             </p>
             <button class="btn ghost" id="dash-btn" onclick="openLiveDashboard()">
@@ -229,9 +273,16 @@
             <div class="card-body cent">
               <h2 class="callout" id="free-headline"></h2>
               <p class="muted" id="free-body"></p>
-              <button class="btn" id="dl-btn" onclick="downloadFree()">
-                [ DOWNLOAD THE FREE VERSION ]
-              </button>
+
+              <form class="waitlist-form" id="waitlist-form" onsubmit="submitWaitlist(event)">
+                <label for="wait-email">Get the free local setup — join the waitlist</label>
+                <div class="wait-row">
+                  <input type="email" id="wait-email" name="email" placeholder="you@company.com" required autocomplete="email" />
+                  <button class="btn" type="submit" id="wait-btn">[ JOIN THE WAITLIST ]</button>
+                </div>
+                <p class="wait-msg" id="wait-msg" role="status"></p>
+              </form>
+
               <div class="filelist" id="filelist"></div>
             </div>
           </div>
@@ -254,9 +305,12 @@
                 <li>SLA-backed support</li>
               </ul>
               <form class="lead-form" id="lead-form" onsubmit="submitLead(event)">
-                <input type="text" name="name" placeholder="Your name" required autocomplete="name" />
-                <input type="email" name="email" placeholder="Work email" required autocomplete="email" />
-                <input type="text" name="company" placeholder="Company" required autocomplete="organization" />
+                <label for="lead-name">Your name</label>
+                <input type="text" id="lead-name" name="name" placeholder="Ada Lovelace" required autocomplete="name" />
+                <label for="lead-email">Work email</label>
+                <input type="email" id="lead-email" name="email" placeholder="ada@company.com" required autocomplete="email" />
+                <label for="lead-company">Company</label>
+                <input type="text" id="lead-company" name="company" placeholder="Company Inc." required autocomplete="organization" />
                 <button class="btn" type="submit" id="lead-btn">REQUEST A CALL</button>
               </form>
               <p class="lead-msg" id="lead-msg" role="status"></p>
@@ -277,15 +331,15 @@
     <div class="dash-mask" onclick="closeLiveDashboard()"></div>
     <div class="dash-panel" role="dialog" aria-label="live local dashboard">
       <div class="dash-head">
-        <span class="dash-title">STEEROS — live local dashboard</span>
+        <span class="dash-title">STEEROS · live local dashboard</span>
         <span class="ld-live">LIVE</span>
         <button class="dash-close" onclick="closeLiveDashboard()" aria-label="close">×</button>
       </div>
       <div class="dash-grid">
-        <div class="dash-stat"><span class="ld-tokens">—</span><span class="dash-label">tokens saved</span></div>
-        <div class="dash-stat"><span class="ld-saved">—</span><span class="dash-label">total money saved</span></div>
-        <div class="dash-stat"><span class="ld-monthly">—</span><span class="dash-label">avg monthly savings</span></div>
-        <div class="dash-stat"><span class="ld-requests">—</span><span class="dash-label">requests routed</span></div>
+        <div class="dash-stat"><span class="ld-tokens">···</span><span class="dash-label">tokens saved</span></div>
+        <div class="dash-stat"><span class="ld-saved">···</span><span class="dash-label">total money saved</span></div>
+        <div class="dash-stat"><span class="ld-monthly">···</span><span class="dash-label">avg monthly savings</span></div>
+        <div class="dash-stat"><span class="ld-requests">···</span><span class="dash-label">requests routed</span></div>
       </div>
       <div class="dash-foot">
         <span class="muted">Pull from <span class="fn">/api/dashboard</span> · updates on every connection</span>
@@ -294,6 +348,6 @@
     </div>
   </div>
 
-  <script src="/static/app.js?v=7"></script>
+  <script src="/static/app.js?v=8"></script>
 </body>
 </html>
